@@ -1,0 +1,23 @@
+.sub-header{
+    min-height: 50px !important;
+    box-shadow:'none'
+}
+
+.menu_list{
+    min-width: 250px !important;
+}
+
+.card-active :hover{
+    border: 2px solid blue;
+}
+
+.measurment-dialog{
+    width: 400px;
+    position: absolute;
+    top: 118px;
+    z-index: 99;
+    right: 58px;
+    min-height: 250px;
+    /* border: 2px solid grey; */
+    box-shadow: rgba(0, 0, 0, 0.56) 0px 22px 70px 4px;
+}
