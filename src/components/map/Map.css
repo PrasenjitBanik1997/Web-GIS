@@ -101,7 +101,6 @@
     background: rgb(84, 234, 99);
 }
 
-
 .button_home {
     /* position: absolute; */
     top: 80px;
@@ -116,17 +115,35 @@
     background-color: white;
     border: 2px solid rgb(221, 229, 221);
     border-radius: 5px;
-    top:225px;
+    /* top:225px; */
+    top: 126px;
     left:48px;
+}
+
+.tableHideShowButton{
+    position: absolute;
+    top: 304px;
+    left: 23px;
+    height: 1.4em;
+    width: 1.4em;
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    /* padding: 10px; */
+    /* color: #0b0b5f; */
+    /* border: 0.5px solid #aaa2a2; */
+    border-radius: 2px;
+    background-color: #f8f4f4;
 }
 
 
 .table_div{
     position: absolute;
     left: 320px;
-    top: 350px;
+    /* top: 460px; */
     width: 75%;
     /* height: 400px; */
+    bottom:2px;
 }
 
 #overlay{
@@ -230,7 +247,7 @@
     background-color: white;
     border: 2px solid rgb(221, 229, 221);
     border-radius: 5px;
-    top:225px;
+    top: 126px;
     left:48px;
 }
 
@@ -253,4 +270,19 @@
     padding:5px ;
     border: rgb(51, 38, 38) 2px solid;
     border-radius: 5px;
+}
+
+.custom-mouse-position{
+    position: absolute;
+    left: 40%;
+    background-color: rgb(21, 24, 171);
+    padding: 0px 10px 0px 10px;
+    border: 1px solid rgb(59, 59, 63);
+    border-radius: 5px;
+    color:rgb(4, 251, 25);
+    font-weight: 700;
+    bottom: 10px;
+    box-shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
+    z-index: 7;
+    align-items: center;
 }

@@ -166,10 +166,10 @@ function Navbar(props) {
             name: 'Haldia Mouza',
             value: 'HALDIA_MOUZA'
         },
-        {
-            name: 'Haldia Planning Area',
-            value: 'HALDIA_PLANNING_AREA'
-        },
+        // {
+        //     name: 'Haldia Planning Area',
+        //     value: 'HALDIA_PLANNING_AREA'
+        // },
         {
             name: 'Haldia Industry',
             value: 'HALDIA_INDUSTRY'
@@ -182,9 +182,17 @@ function Navbar(props) {
             name: 'Haldia Storage',
             value: 'HALDIA_STORAGE'
         },
+        // {
+        //     name: '	Layer 1503 Ha Khasra Polygon',
+        //     value: 'LAYER_KHASRA_POLYGON'
+        // },
         {
-            name: '	Layer 1503 Ha Khasra Polygon',
-            value: 'LAYER_KHASRA_POLYGON'
+            name: 'India State',
+            value: 'INDIA_STATE'
+        },
+        {
+            name: 'West Bengal Village',
+            value: 'INDIA_VILLAGE_WB'
         }
     ]
     const { open, setOpen, handleDrawerOpen } = props;
@@ -367,6 +375,30 @@ function Navbar(props) {
 
     }
 
+    const getPrintOfCurrentWindow = () => {
+        window.print();
+    }
+
+
+
+    const onShare = async () => {
+        try {
+            if (navigator.share) {
+                await navigator.share({
+                    title: document.title,
+                    url: window.location.href
+                });
+                console.log('Page shared successfully');
+            } else {
+                throw new Error('Web Share API is not supported in this browser');
+            }
+        } catch (error) {
+            console.error('Error sharing the page:', error);
+            // Handle error or provide fallback for unsupported browsers
+        }
+    };
+
+
     return (
         <div>
             <Header position="fixed" open={open} style={{ backgroundColor: 'white', boxShadow: 'none' }}>
@@ -534,8 +566,8 @@ function Navbar(props) {
                     {/* <material.Typography variant="h6" noWrap component="div">
                         Persistent drawer
                     </material.Typography> */}
-                    <material.Button sx={{ textTransform: 'none' }} className='mx-2' startIcon={<material.ShareIcon />} >Share</material.Button>
-                    <material.Button sx={{ textTransform: 'none' }} startIcon={<material.PrintIcon />} >Print</material.Button>
+                    <material.Button sx={{ textTransform: 'none' }} className='mx-2' startIcon={<material.ShareIcon />} onClick={onShare} >Share</material.Button>
+                    <material.Button sx={{ textTransform: 'none' }} startIcon={<material.PrintIcon />} onClick={getPrintOfCurrentWindow}>Print</material.Button>
                     <material.Button sx={{ textTransform: 'none' }} className='mx-2' startIcon={<material.DesignServicesIcon />} onClick={handleOpenPopoverForMeasurment} >Measure</material.Button>
                     <Search >
                         <SearchIconWrapper sx={{ color: 'black' }}>
@@ -558,7 +590,7 @@ function Navbar(props) {
                             <material.Typography noWrap component="div" className='fw-bold'>
                                 Find area and length
                             </material.Typography>
-                            <material.Typography noWrap component="div" sx={{ fontSize: '15px' }}  className='fw-bold'>
+                            <material.Typography noWrap component="div" sx={{ fontSize: '15px' }} className='fw-bold'>
                                 <material.CloseIcon onClick={handleClosePopoverForMeasurment} />
                             </material.Typography>
                         </div>

@@ -17,6 +17,8 @@ import Feature from 'ol/Feature';
 import { get as getProjection } from 'ol/proj.js';
 import './Map.css';
 import { useSelector } from 'react-redux';
+import { createStringXY } from 'ol/coordinate.js';
+import MousePosition from 'ol/control/MousePosition.js';
 import {
     DragRotateAndZoom,
     defaults as defaultInteractions,
@@ -29,14 +31,14 @@ import { material } from '../../library/material';
 import { measurmentValueChangeAction } from '../../store/slice/MeasurmentvalueSlice';
 import { useDispatch } from 'react-redux';
 import TileWMS from 'ol/source/TileWMS.js';
-import { getAllLayer, getLayerDataByQuery, getAttributeByLayerName, getLayerData, getFeatureForSpatialQuery } from '../../services/LayerInfoService';
+import { getAllLayer, getLayerDataByQuery, getAttributeByLayerName, getLayerData, getFeatureByQuery } from '../../services/LayerInfoService';
 import XMLParser from 'react-xml-parser';
 import ZoomToExtent from 'ol/control/ZoomToExtent.js';
 import queryIcon from '../../assets/map-image/queryIcon.png';
 import popupShowIcon from '../../assets/map-image/showIcon.png';
 import popupHideIcon from '../../assets/map-image/hideIcon.png';
 import spatialQueryIcon from '../../assets/map-image/spatialqueryicon.png';
-import { Icon, Style,Fill  } from 'ol/style';
+import { Icon, Style, Fill, Circle } from 'ol/style';
 import GeoJSON from 'ol/format/GeoJSON.js';
 import Stroke from 'ol/style/Stroke.js';
 import Overlay from 'ol/Overlay';
@@ -44,10 +46,14 @@ import * as ReactDOM from 'react-dom';
 import Infodialog from '../featureinfo/Infodialog';
 import Infoicon from '../../assets/map-image/infoIcon.png';
 import * as olLoadingStrategy from 'ol/loadingstrategy';
+import { toStringHDMS } from 'ol/coordinate.js';
+import SpatialQueryDialog from '../dialog/SpatialQueryDialog';
+import { createStyle } from '../../utils/vectorLayerCustomStyle';
+import {createCircleVectorLayerFromTheCoordinate}  from '../../utils/generateCircleVectorLayer'
 
 
 var map;
-var layerAfterQuery;
+var layerAfterQuery = null;
 // var currentLayer = new TileLayer({
 //     visible: true,
 //     source: new TileWMS({
@@ -60,12 +66,14 @@ var layerAfterQuery;
 //         serverType: 'geoserver',
 //     })
 // })
-var currentLayer=null;
+var currentLayer = null;
 var popup;
 var spatialDrawFeature;
-var coordinatesForSpatialFeature = [];
+var coordinatesForSpatialFeature = null;
 var newPointLayer = null;
 var drawFeatureForMeasurment = null;
+var newLayerforSpatialQuery = null;
+var circleLayer=null;
 
 function MapComponent() {
     const popupRef = useRef(null);
@@ -98,6 +106,7 @@ function MapComponent() {
             'circle-radius': 7,
             'circle-fill-color': '#ffcc33',
         },
+        zIndex: 5,
     });
 
     const drawPoint = new VectorLayer({
@@ -110,9 +119,12 @@ function MapComponent() {
             'circle-radius': 7,
             'circle-fill-color': '#ffcc33',
         },
+        zIndex: 5,
     });
+    //const defaultExtent = [7636978.342053802, 2546460.5921668783, 10847015.302693773, 3301476.3264769614];
+    const defaultExtent=[9800109.536237817, 2516093.8790986254, 9810033.861218063, 2533895.066382993];
 
-
+    const [isShowTable, setIsShowTable] = useState(true);
     const [isActiveQueryButton, setIsActiveQueryButton] = useState(false);
     const [openQueryDialog, setOpenQueryDialog] = useState(false);
     const [allLayersFromGeoserver, setAllLayersFromGeoserver] = useState([]);
@@ -130,13 +142,15 @@ function MapComponent() {
     const [isSelectedActiveLayer, setIsSelectedActiveLayer] = useState(false);
     const [isActiveFeature, setIsActiveFeature] = useState(false);
     const [isOpenSpatialQueryDialog, setIsOpenSpatialQueryDialog] = useState(false);
+    const [isActiveMousePosition, setIsActiveMousePosition] = useState(false);
 
     /******FOR SPATIAL QUERY******/
     const [layerForSpatialQuery, setLayerForSpatialQuery] = useState([]);
     const [selectedUnitSpeQue, setSelectedUnitSpeQue] = useState("");
-    const [selectedLayerSpeQue, setSelectedLayerSpeQue] = useState("");
+    const [selectedLayerSpeQue, setSelectedLayerSpeQue] = useState([]);
     const [selectedMarkerType, setSelectedMarkerType] = useState("");
     const [selectedFromLocation, setSelectedFromLocation] = useState("");
+    const [spatilQueryDialogData, setSpatilQueryDialogData] = useState({ open: false, spatilQueryInfo: [] });
 
 
     const overviewMapControl = new OverviewMap({
@@ -183,6 +197,19 @@ function MapComponent() {
         className: 'button_home',
     });
 
+    const mousePositionControl = new MousePosition({
+        // coordinateFormat: function (coord) {
+        //   return  toStringHDMS(coord, 1)
+        // },
+        coordinateFormat: createStringXY(4),
+        projection: 'EPSG:4326',
+        // comment the following two lines to have the mouse position
+        // be placed within the map.
+        className: 'custom-mouse-position',
+        target: document.getElementById('mouse-position'),
+        placeholder: 'No position'
+    });
+
     const numberTypeQueryOption = [
         { name: 'Greater than', symbol: '>' },
         { name: 'Less than', symbol: '<' },
@@ -195,9 +222,11 @@ function MapComponent() {
     ]
 
     const view = new View({
-        projection: 'EPSG:3857',
+        //projection: 'EPSG:3857',
         center: [9804544.97917343, 2526365.6759351245],
-        zoom: 12,
+        zoom: 9,
+        // center: [9804544.97917343, 2526365.6759351245],
+        // zoom: 4,
     })
 
 
@@ -216,9 +245,10 @@ function MapComponent() {
         });
         map = new Map({
             target: 'map',
-            controls: defaultControls().extend([overviewMapControl, scaleControl, ZoomToHome]),
+            controls: defaultControls().extend([overviewMapControl, scaleControl, mousePositionControl, ZoomToHome]),
             interactions: defaultInteractions().extend([new DragRotateAndZoom()]),
             extent: [9775518.017682133, 2521301.7228112314, 9833571.940664725, 2531429.6290590176],
+            //extent: [7636978.342053802, 2546460.5921668783, 10847015.302693773, 3301476.3264769614],
             view: view,
             layers: [
                 new TileLayer({
@@ -243,20 +273,9 @@ function MapComponent() {
                             'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                     }),
                 }),
-                //vector
-                // new TileLayer({
-                //     visible: true,
-                //     source: new TileWMS({
-                //         projection: 'EPSG:4326', // here is the source projection
-                //         url: 'http://localhost:8080/geoserver/wms',
-                //         params: {
-                //             "TILED": true,
-                //             "LAYERS": 'topp:states',
-                //         },
-                //         serverType: 'geoserver',
-                //     })
-                // })
+                // createCircleVectorLayerFromTheCoordinate("","")
             ],
+
         })
         map.addOverlay(popup);
         addLayerToMap()
@@ -273,7 +292,7 @@ function MapComponent() {
             //console.log(resolution, coordinate,)
             if (currentLayer != null && isActiveFeature) {
                 let tiledSource = currentLayer.getSource();
-                // console.log(tiledSource)
+                console.log(isActiveFeature)
                 let url = tiledSource.getFeatureInfoUrl(coordinate, resolution, 'EPSG:3857', { 'INFO_FORMAT': 'application/json' });
                 console.log(url)
 
@@ -330,6 +349,7 @@ function MapComponent() {
         });
 
         map.on('move', function (e) {
+            console.log('move')
             // var pixel = map.getEventPixel(e.originalEvent);
             // var feature = map.forEachFeatureAtPixel(pixel, function (feature) {
             //     return feature;
@@ -347,10 +367,17 @@ function MapComponent() {
 
         map.on('pointerdrag', function (event) {
             // You can perform custom actions when the map is dragged here
-            console.log(event);
+            //console.log(event);
+        });
+        map.on('pointermove', function (event) {
+            setIsActiveMousePosition(false);
+            setIsActiveMousePosition(true);
+            setTimeout(() => {
+                setIsActiveMousePosition(false)
+            }, 10000)
         });
 
-
+        setLayerForSpatialQuery(getSelectedLayer())
 
         return () => {
             map.dispose();
@@ -397,7 +424,7 @@ function MapComponent() {
         let haldiaMouza = new TileLayer({
             visible: true,
             source: new TileWMS({
-                projection: 'EPSG:3857', // here is the source projection
+                //projection: 'EPSG:4326'', // here is the source projection
                 url: 'http://localhost:8080/geoserver/wms',
                 params: {
                     "TILED": true,
@@ -405,12 +432,13 @@ function MapComponent() {
                 },
                 serverType: 'geoserver',
             }),
+            zIndex: 1,
         });
 
         let haldiaPlanningArea = new TileLayer({
             visible: true,
             source: new TileWMS({
-                projection: 'EPSG:3857', // here is the source projection
+                //projection: 'EPSG:3857', // here is the source projection
                 url: 'http://localhost:8080/geoserver/wms',
                 params: {
                     "TILED": true,
@@ -423,7 +451,7 @@ function MapComponent() {
         let haldiaRoad = new TileLayer({
             visible: true,
             source: new TileWMS({
-                projection: 'EPSG:3857', // here is the source projection
+                //projection: 'EPSG:3857', // here is the source projection
                 url: 'http://localhost:8080/geoserver/wms',
                 params: {
                     "TILED": true,
@@ -431,12 +459,13 @@ function MapComponent() {
                 },
                 serverType: 'geoserver',
             }),
+            zIndex: 1,
         });
 
         let haldiaIndustry = new TileLayer({
             visible: true,
             source: new TileWMS({
-                projection: 'EPSG:3857', // here is the source projection
+                //projection: 'EPSG:3857', // here is the source projection
                 url: 'http://localhost:8080/geoserver/wms',
                 params: {
                     "TILED": true,
@@ -444,11 +473,12 @@ function MapComponent() {
                 },
                 serverType: 'geoserver',
             }),
+            zIndex: 1,
         });
         let haldiaStorage = new TileLayer({
             visible: true,
             source: new TileWMS({
-                projection: 'EPSG:3857', // here is the source projection
+                //projection: 'EPSG:3857', // here is the source projection
                 url: 'http://localhost:8080/geoserver/wms',
                 params: {
                     "TILED": true,
@@ -456,16 +486,43 @@ function MapComponent() {
                 },
                 serverType: 'geoserver',
             }),
+            zIndex: 2,
         });
 
         let layer1503HaKhasra = new TileLayer({
             visible: true,
             source: new TileWMS({
-                projection: 'EPSG:3857', // here is the source projection
+                //projection: 'EPSG:3857', // here is the source projection
                 url: 'http://localhost:8080/geoserver/wms',
                 params: {
                     "TILED": true,
                     "LAYERS": 'haldia:layer_1503_ha_khasra-polygon',
+                },
+                serverType: 'geoserver',
+            }),
+        });
+
+        let indiaState = new TileLayer({
+            visible: true,
+            source: new TileWMS({
+                //projection: 'EPSG:3857', // here is the source projection
+                url: 'http://localhost:8080/geoserver/wms',
+                params: {
+                    "TILED": true,
+                    "LAYERS": 'haldia:india_state_boundary',
+                },
+                serverType: 'geoserver',
+            }),
+        });
+
+        let indiaVillageWestbengal = new TileLayer({
+            visible: true,
+            source: new TileWMS({
+                projection: 'EPSG:32644', // here is the source projection
+                url: 'http://localhost:8080/geoserver/wms',
+                params: {
+                    "TILED": true,
+                    "LAYERS": 'haldia:wb_village',
                 },
                 serverType: 'geoserver',
             }),
@@ -481,50 +538,42 @@ function MapComponent() {
             let groupOfLayers = []
 
             if (layerDetails?.layerName.includes('HALDIA_MOUZA')) {
-                //map.addLayer(haldiaMouza);
-                //setCurrentLayer(haldiaMouza);
-                //currentLayer = haldiaMouza;
                 groupOfLayers.push(haldiaMouza);
                 currentLayer = null;
                 setIsSelectedActiveLayer(false);
             }
             if (layerDetails?.layerName.includes('HALDIA_PLANNING_AREA')) {
-                //map.addLayer(haldiaPlanningArea);
-                //setCurrentLayer(haldiaPlanningArea);
-                //currentLayer = haldiaMouza;
                 groupOfLayers.push(haldiaPlanningArea);
                 currentLayer = null;
                 setIsSelectedActiveLayer(false);
             }
             if (layerDetails?.layerName.includes('HALDIA_ ROAD')) {
-                map.addLayer(haldiaRoad);
-                //setCurrentLayer(haldiaRoad);
-                //currentLayer = haldiaRoad;
                 groupOfLayers.push(haldiaRoad);
                 currentLayer = null;
                 setIsSelectedActiveLayer(false);
             }
             if (layerDetails?.layerName.includes('HALDIA_STORAGE')) {
-                //map.addLayer(haldiaStorage);
-                //setCurrentLayer(haldiaStorage);
-                //currentLayer = haldiaStorage;
                 groupOfLayers.push(haldiaStorage);
                 currentLayer = null;
                 setIsSelectedActiveLayer(false);
             }
             if (layerDetails?.layerName.includes('HALDIA_INDUSTRY')) {
-                //map.addLayer(haldiaIndustry);
-                //setCurrentLayer(haldiaIndustry);
-                //currentLayer = haldiaIndustry;
                 groupOfLayers.push(haldiaIndustry);
                 currentLayer = null;
                 setIsSelectedActiveLayer(false);
             }
             if (layerDetails?.layerName.includes('LAYER_KHASRA_POLYGON')) {
-                //map.addLayer(haldiaIndustry);
-                //setCurrentLayer(haldiaIndustry);
-                //currentLayer = haldiaIndustry;
                 groupOfLayers.push(layer1503HaKhasra);
+                currentLayer = null;
+                setIsSelectedActiveLayer(false);
+            }
+            if (layerDetails?.layerName.includes('INDIA_STATE')) {
+                groupOfLayers.push(indiaState);
+                currentLayer = null;
+                setIsSelectedActiveLayer(false);
+            }
+            if (layerDetails?.layerName.includes('INDIA_VILLAGE_WB')) {
+                groupOfLayers.push(indiaVillageWestbengal);
                 currentLayer = null;
                 setIsSelectedActiveLayer(false);
             }
@@ -576,6 +625,18 @@ function MapComponent() {
                 currentLayer = layer1503HaKhasra;
                 setIsSelectedActiveLayer(true);
             }
+            if (layerDetails?.layerName.includes('INDIA_STATE')) {
+                map.addLayer(indiaState);
+                //setCurrentLayer(haldiaIndustry);
+                currentLayer = indiaState;
+                setIsSelectedActiveLayer(true);
+            }
+            if (layerDetails?.layerName.includes('INDIA_VILLAGE_WB')) {
+                map.addLayer(indiaVillageWestbengal);
+                //setCurrentLayer(haldiaIndustry);
+                currentLayer = indiaVillageWestbengal;
+                setIsSelectedActiveLayer(true);
+            }
         }
     }
 
@@ -617,18 +678,23 @@ function MapComponent() {
     };
 
     const closeQueryPopOver = () => {
-        setOpenQueryDialog(false);
-        setIsActiveQueryButton(false);
+        //setOpenQueryDialog(false);
+        //setIsActiveQueryButton(false);
         setColumn([]);
         setTableData([]);
         layerAfterQuery?.getSource().clear();
         map.removeLayer(layerAfterQuery);
-        setIsReload(!isReload)
+        //setIsReload(!isReload)
+        map.getView().fit(defaultExtent, { duration: 1590, size: map.getSize(), maxZoom: 4 });
+        layerAfterQuery = null;
     }
 
     const openQueryPopOver = (event) => {
-        setOpenQueryDialog(true);
-        setIsActiveQueryButton(true);
+        setColumn([]);
+        setTableData([]);
+        //setIsShowTable(false)
+        setOpenQueryDialog(!openQueryDialog);
+        setIsActiveQueryButton(!isActiveQueryButton);
         getAllLayer().then((res) => {
             let parser = new DOMParser();
             let xmlDoc = parser.parseFromString(res.data, "text/xml");
@@ -655,8 +721,7 @@ function MapComponent() {
             let parser = new DOMParser();
             let xmlDoc = parser.parseFromString(res.data, "text/xml");
             let dataSequenceTag = xmlDoc.getElementsByTagName("xsd:sequence");
-            //console.log(dataSequenceTag)
-            let data = dataSequenceTag[0].getElementsByTagName("xsd:element")
+            let data = dataSequenceTag[0].getElementsByTagName("xsd:element");
             let allAttributes = [];
             for (let i = 0; i < data.length; i++) {
                 let attributeType = data[i].getAttribute('type').split(':')[1];
@@ -709,47 +774,48 @@ function MapComponent() {
         let url = `http://localhost:8080/geoserver/haldia/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=${payLoad.layerName}&CQL_FILTER=${payLoad.attributeName}+${payLoad.operatorName}+%27${payLoad.inputValue}%27&outputFormat=application/json`
 
         layerAfterQuery = new VectorLayer({
-            // extent:[8620876.836424291, 887262.64171285,8792062.721944958, 4069833.620651435],
             source: new VectorSource({
-                projection: 'EPSG:3857',
-                url: url,
                 format: new GeoJSON(),
+                url: url,
+                //projection: 'EPSG:4326',
+                // loader: (extent, resolution, projection) => {
+                //     getFeatureByQuery(url).then((res) => {
+                //         console.log(res.data)
+                //     });
+                // }
             }),
             visible: true,
-            // style: new Style({
-            //     fill: new Fill({
-            //         color: "#F0F8FF",
-            //     }),
-            //     stroke: new Stroke({
-            //         color: "#0047ab",
-            //         width: 2,
-            //     }),
-            // }),
             style: new Style({
-                // fill: new Fill({
-                //     color: "#FF5733",
-                // }),
+                fill: new Fill({
+                    color: "#F0F8FF",
+                }),
                 stroke: new Stroke({
-                    color: "#FF5733",
+                    color: "#0047ab",
                     width: 2,
                 }),
+                image: new Circle({
+                    radius: 6,
+                    fill: new Fill({
+                        color: "#F0F8FF",
+                    }),
+                    stroke: new Stroke({
+                        color: "#0047ab",
+                        width: 2,
+                    }),
+                }),
             }),
+            zIndex: 1,
         });
-
-        //console.log(layerAfterQuery.getFeatures)
-        //console.log(map.getView().calculateExtent(map.getSize()))
-        //console.log(map.getView())
 
         layerAfterQuery.getSource().on('addfeature', function (e) {
             const layerExtent = layerAfterQuery.getSource().getExtent();
+            console.log(layerExtent)
             map.getView().fit(
                 layerExtent,
-                { duration: 1590, size: map.getSize(), maxZoom: 15, projection: 'EPSG:3857'}
+                { duration: 1590, size: map.getSize(), maxZoom: 15 }
             )
         })
         map.addLayer(layerAfterQuery)
-
-
 
         getLayerDataByQuery(url).then((res) => {
             if (res.data.features.length > 0) {
@@ -826,50 +892,80 @@ function MapComponent() {
             if (layerDetails?.layerName.includes('HALDIA_INDUSTRY')) {
                 layerAddedTotheMap.push('haldia:industry')
             }
+            if (layerDetails?.layerName.includes('INDIA_STATE')) {
+                layerAddedTotheMap.push('haldia:india_state_boundary')
+            }
+            if (layerDetails?.layerName.includes('INDIA_VILLAGE_WB')) {
+                layerAddedTotheMap.push('haldia:wb_village')
+            }
         }
         return layerAddedTotheMap;
     }
 
     const getSpatialQueryFormData = (formData) => {
-        if (coordinatesForSpatialFeature.length > 0) {
-            let cordList = coordinatesForSpatialFeature[0] + " " + coordinatesForSpatialFeature[1];
-            console.log(cordList);
-            let selectedGeom = '';
-            if (formData.featureOf === 'haldia:haldia_planning_area' || formData.featureOf === 'haldia:road' || formData.featureOf === 'haldia:road') {
-                selectedGeom = 'the_geom'
-            } else {
-                selectedGeom = 'geom'
+        if (coordinatesForSpatialFeature) {
+            let cordList = coordinatesForSpatialFeature.getGeometry().getCoordinates()[0] + " " + coordinatesForSpatialFeature.getGeometry().getCoordinates()[1];
+            let lengthValue;
+            if (formData.selectedUnit === 'meters') {
+                lengthValue = Number(formData.lengthValue);
+            } else if (formData.selectedUnit === 'kilometers') {
+                lengthValue = (Number(formData.lengthValue) * 1000).toFixed(4);
+            } else if (formData.selectedUnit === 'feet') {
+                lengthValue = (Number(formData.lengthValue) / 3.28084).toFixed(4);
+                //lengthValue = lengthValue.toFixed(4);
+            } else if (formData.selectedUnit === 'nautical miles') {
+                lengthValue = (Number(formData.lengthValue) * 1852).toFixed(4);
             }
-            let url = `http://localhost:8080/geoserver/haldia/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=${formData.featureOf}&CQL_FILTER=DWITHIN(${selectedGeom},${formData.markerType}(${cordList}),${formData.lengthValue},${formData.selectedUnit})&outputFormat=application/json`
-            // getFeatureForSpatialQuery(url).then((res) => {
-            //     console.log(res.data)
-            // });
+            if(circleLayer!==null){
+                map.removeLayer(circleLayer);
+            }
+            
+            circleLayer = createCircleVectorLayerFromTheCoordinate(coordinatesForSpatialFeature.getGeometry().getCoordinates(),lengthValue)
+            map.addLayer(circleLayer);
+            // let selectedGeom = '';
+            // if (formData.featureOf === 'haldia:haldia_planning_area' || formData.featureOf === 'haldia:road' || formData.featureOf === 'haldia:road') {
+            //     selectedGeom = 'the_geom'
+            // } else {
+            //     selectedGeom = 'geom'
+            // }
 
-            let extent3857 = map.getView().calculateExtent(map.getSize());
-            console.log(extent3857)
-            const sourceProjection = getProjection('EPSG:3857');
-            const targetProjection = getProjection('EPSG:4326');
-            // Convert the extent from EPSG:3857 to EPSG:4326
-            const extent4326 = transformExtent(extent3857, sourceProjection, targetProjection);
-            console.log(extent4326)
-            let newLayerforSpatialQuery = new VectorLayer({
+            let selectedGeom = 'geom'
+            let url = `http://localhost:8080/geoserver/haldia/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=${formData.featureOf}&CQL_FILTER=DWITHIN(${selectedGeom},${formData.markerType.toUpperCase()}(${cordList}),${Number(lengthValue)},${'meters'})&outputFormat=application/json`
+
+            if (newLayerforSpatialQuery != null) {
+                map.removeLayer(newLayerforSpatialQuery);
+                newLayerforSpatialQuery = null;
+                // map.render()
+            }
+            newLayerforSpatialQuery = new VectorLayer({
+                name: 'Spatial',
                 source: new VectorSource({
                     //extent: [9800109.536237817, 2516093.8790986254, 9810033.861218063, 2533895.066382993],
                     url: url,
                     format: new GeoJSON(),
-                    projection: 'EPSG:3857',
-                    strategy: olLoadingStrategy.bbox,
                 }),
                 visible: true,
-                style: new Style({
-                    // fill: new Fill({
-                    //     color: "#FF5733",
-                    // }),
-                    stroke: new Stroke({
-                        color: "#FF5733",
-                        width: 2,
-                    }),
-                }),
+                zIndex: 2,
+                // style: new Style({
+                //     fill: new Fill({
+                //         color: "#F0F8FF",
+                //     }),
+                //     stroke: new Stroke({
+                //         color: "#FF0000",
+                //         width: 4,
+                //     }),
+                //     image: new Circle({
+                //         radius: 5,
+                //         fill: new Fill({
+                //             color: "#18ffff",
+                //         }),
+                //         stroke: new Stroke({
+                //             color: "#880e4f",
+                //             width: 2,
+                //         }),
+                //     }),
+                // }),
+                style: (feature) => createStyle(feature)
             });
 
 
@@ -881,16 +977,55 @@ function MapComponent() {
                 )
             })
             map.addLayer(newLayerforSpatialQuery)
+
+            /**code for create dialog data start**/
+            setSpatilQueryDialogData({ open: false, spatilQueryInfo: [] });
+            let dataSpatialAfterQuery = []
+            for (let i=0; i < formData.featureOf.length; i++) {
+                let dataUrl = '';
+                dataUrl = `http://localhost:8080/geoserver/haldia/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=${formData.featureOf[i]}&CQL_FILTER=DWITHIN(${selectedGeom},${formData.markerType.toUpperCase()}(${cordList}),${Number(lengthValue)},${'meters'})&outputFormat=application/json`
+                getFeatureByQuery(dataUrl).then((res) => {
+                    let columnName = res.data.features.length > 0 ? Object.keys(res.data.features[0].properties) : [];
+                    let tableData = res.data.features.length > 0 ? res.data.features.map((ele) => ele.properties) : [];
+                    let layerName = formData.featureOf[i].split(':')[1];
+                    let obj = { layerName:layerName, tableData:tableData, columnName:columnName };
+                    dataSpatialAfterQuery.push(obj)
+                    if ((i === (formData.featureOf.length - 1))) {
+                        console.log([...dataSpatialAfterQuery])
+                        setSpatilQueryDialogData({ open: true, spatilQueryInfo: [...dataSpatialAfterQuery] });
+                    }
+                });
+            }
+            // formData.featureOf.forEach((ele, i) => {
+            //     let dataUrl='';
+            //     dataUrl = `http://localhost:8080/geoserver/haldia/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=${ele}&CQL_FILTER=DWITHIN(${selectedGeom},${formData.markerType.toUpperCase()}(${cordList}),${Number(lengthValue)},${'meters'})&outputFormat=application/json`
+            //     //console.log(dataUrl)
+            //     getFeatureByQuery(dataUrl).then((res) => {
+            //         let columnName = res.data.features.length > 0 ? Object.keys(res.data.features[0].properties) : [];
+            //         let tableData = res.data.features.length > 0 ? res.data.features.map((ele) => ele.properties) : [];
+            //         let layerName = ele.split(':')[1];
+            //         let obj = { layerName, tableData, columnName };
+            //         console.log(obj)
+            //         dataAfterQuery.push(obj)
+            //         if ((i === (formData.featureOf.length - 1))) {
+            //             console.log([...dataAfterQuery])
+            //             setSpatilQueryDialogData({ open: true, spatilQueryInfo: [...dataAfterQuery] });
+            //         }
+            //     });
+            // })
+            /**code for create dialog data end**/
+
         }
     }
+
 
     const drawFeatureInThemap = () => {
         //map.removeLayer(vector)
         let listener2;
-        let drawFeatureValue = getValues2('markerType');
+        let drawType = getValues2('markerType');
         spatialDrawFeature = new Draw({
             source: drawPoint.getSource(),
-            type: drawFeatureValue
+            type: drawType
         });
         //map.addLayer(vector)
         map.addInteraction(spatialDrawFeature);
@@ -922,8 +1057,8 @@ function MapComponent() {
         });
         spatialDrawFeature.on('drawend', function (event) {
             var drawnFeature = event.feature;
-            console.log(event)
-            coordinatesForSpatialFeature = drawnFeature.getGeometry().getCoordinates();
+            drawnFeature.set('geometry', drawnFeature.getGeometry())
+            coordinatesForSpatialFeature = drawnFeature;
             map.removeInteraction(spatialDrawFeature);
             newPointLayer = drawPoint
             map.addLayer(newPointLayer)
@@ -943,8 +1078,23 @@ function MapComponent() {
                 }
             });
         }
+        if (newLayerforSpatialQuery != null) {
+            coordinatesForSpatialFeature = null;
+            newLayerforSpatialQuery.getSource().clear();
+            map.removeLayer(newLayerforSpatialQuery);
+            newLayerforSpatialQuery = null;
+            map.render();
+        }
+        map.getView().fit(defaultExtent, { duration: 1590, size: map.getSize(), maxZoom: 10 });
     }
 
+    const spatialQueryInfoDialogClose = () => {
+        setSpatilQueryDialogData({ open: false, spatilQueryInfo: [] });
+    }
+
+    const showHideTable = () => {
+        setIsShowTable(!isShowTable);
+    }
 
     return (
         <div>
@@ -958,6 +1108,16 @@ function MapComponent() {
                 className='map'
             >
             </div>
+
+            <div id="mouse-position" style={{ display: isActiveMousePosition ? 'block' : 'none' }}>
+            </div>
+
+            <material.Tooltip title="Table Visiblity" arrow placement="right">
+                <button className='tableHideShowButton' style={{ background: isShowTable ? 'rgb(84, 234, 99)' : 'white', border: isShowTable ? '0.5px solid #0b0b5f' : '0.5px solid #aaa2a2', display: tableData.length > 0 ? 'flex' : 'none' }} onClick={showHideTable} >
+                    {isShowTable ? <material.VisibilityOffIcon fontSize='small' /> : <material.VisibilityIcon fontSize='small' />}
+                </button>
+            </material.Tooltip>
+
             <material.Tooltip title="Apply Attribute Query" arrow placement="right">
                 <button className='queryButton' style={{ background: isActiveQueryButton ? 'rgb(84, 234, 99)' : 'white', border: isActiveQueryButton ? '0.5px solid #0b0b5f' : '0.5px solid #aaa2a2' }} onClick={openQueryPopOver}><img src={queryIcon} style={{ height: '1em', width: '1em' }} alt="" /></button>
             </material.Tooltip>
@@ -967,9 +1127,9 @@ function MapComponent() {
                         <div className='text-white'>
                             Apply Query
                         </div>
-                        <div>
+                        {/* <div>
                             <material.CloseIcon style={{ color: 'white' }} onClick={closeQueryPopOver} />
-                        </div>
+                        </div> */}
                     </div>
 
                     <form className="col-12 d-flex flex-column p-0">
@@ -1054,18 +1214,26 @@ function MapComponent() {
                             required
                         />
                         <span className='d-flex justify-content-end my-2'>
-                            <material.Button variant="contained" type='submit' sx={{ textTransform: 'none' }} onClick={handleSubmit1(createUrlForQuery)} disabled={!isValid1}>
+
+                            <material.Button variant="contained" sx={{ textTransform: 'none', mr: 2 }} color="error" disabled={layerAfterQuery == null} onClick={closeQueryPopOver}>
+                                <material.HighlightOffIcon /> Clear
+                            </material.Button>
+
+                            <material.Button variant="contained" type='submit' sx={{ textTransform: 'none' }} onClick={handleSubmit1(createUrlForQuery)} disabled={!isValid1 || layerAfterQuery !== null}>
                                 <img src={queryIcon} style={{ height: '2em', width: '2em' }} alt="" className='me-2' /> Apply
                             </material.Button>
+
                         </span>
                     </form>
                 </div>
             </div>
 
-            {tableData.length > 0 ? (<div className='table_div'>
-                <div><material.CloseIcon style={{ color: 'red' }} onClick={closeQueryPopOver} /></div>
-                <Table columns={column} data={tableData} />
-            </div>) : null}
+            {tableData.length > 0 ? (
+                <div className='table_div' style={{ display: isShowTable ? 'block' : 'none' }}>
+                    {/* <div><material.CloseIcon style={{ color: 'red' }} onClick={closeQueryPopOver} /></div> */}
+                    <Table columns={column} data={tableData} />
+                </div>
+            ) : null}
 
             <material.Tooltip title="Active Feature Info" arrow placement="right">
                 <button className='popupShowHide' style={{ background: isActiveFeature ? 'rgb(84, 234, 99)' : 'white', border: isActiveFeature ? '0.5px solid #0b0b5f' : '0.5px solid #aaa2a2' }} onClick={featureActive}><img src={Infoicon} style={{ height: '1em', width: '1em' }} alt="" /></button>
@@ -1095,10 +1263,16 @@ function MapComponent() {
                                 {...register2("featureOf", { required: true })}
                                 labelId="demo-select-small-label"
                                 id="demo-select-small"
+
+                                multiple
+                                // value={selectedValues}
+                                // onChange={handleChange}
+
                                 value={selectedLayerSpeQue}
                                 label="Select a layer"
                                 onChange={onchangeLayerSpeQue}
                                 required
+                                renderValue={(selected) => selected.join(', ')}
                             >
                                 {
                                     layerForSpatialQuery.map((layers, i) => (
@@ -1202,7 +1376,7 @@ function MapComponent() {
                     </div>
                 </form>
             </div>
-
+            <SpatialQueryDialog openInfo={spatilQueryDialogData} spatialQueryInfoDialogClose={spatialQueryInfoDialogClose} />
         </div>
     )
 }

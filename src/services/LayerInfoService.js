@@ -27,8 +27,8 @@ import { rooApiUrl } from "../environment/Environment";
 //     })
 // }
 
-export const getLayerDataByQuery = async (url) => {
-    return await axios.get(url)
+export const getLayerDataByQuery = async (qUrl) => {
+    return await axios.get(qUrl)
 }
 
 export const getAllLayer = async () => {
@@ -87,6 +87,6 @@ export const getLayerData = async (url) => {
     return await axios.get(url)
 }
 
-export const getFeatureForSpatialQuery = async (url) =>{
-    return await axios.get(url)
+export const getFeatureByQuery = async (spUrl) =>{
+    return await axios.get(spUrl)
 }

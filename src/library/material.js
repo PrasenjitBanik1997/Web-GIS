@@ -171,7 +171,13 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import SwipeRightAltIcon from '@mui/icons-material/SwipeRightAlt';
-
+import InfoIcon from '@mui/icons-material/Info';
+import WarningIcon from '@mui/icons-material/Warning';
+import DangerousIcon from '@mui/icons-material/Dangerous';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import AnnouncementIcon from '@mui/icons-material/Announcement';
+import HighlightOffIcon from '@mui/icons-material/HighlightOff';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 
 
 
@@ -344,5 +350,12 @@ export const material = {
     RefreshIcon,
     PlayArrowIcon,
     SubdirectoryArrowRightIcon,
-    SwipeRightAltIcon
+    SwipeRightAltIcon,
+    InfoIcon,
+    WarningIcon,
+    DangerousIcon,
+    CheckCircleOutlineIcon,
+    AnnouncementIcon,
+    HighlightOffIcon,
+    FileDownloadIcon
 };

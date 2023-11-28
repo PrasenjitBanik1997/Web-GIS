@@ -20,18 +20,14 @@ function Table(props) {
 
     const { columns, data } = props;
 
-    console.log(data)
-
-
-
     return (
         <material.Paper sx={{ width: '100%',pb:1 }}>
-            <material.TableContainer sx={{ maxHeight: 330 }}>
+            <material.TableContainer sx={{ maxHeight: 240 }}>
                 <material.Table stickyHeader aria-label="sticky table">
                     <material.TableHead sx={{fontWeight:'bold',color:'white',textTransform:'capitalize',backgroundColor:'blue'}}>
-                        <material.TableRow sx={{textTransform:'capitalize'}}>
+                        <material.TableRow sx={{textTransform:'capitalize',height:20}} >
                             {columns.map((column) => (
-                                <StyledTableCell
+                                <StyledTableCell size='small'
                                     key={column}
                                     align='center'
                                     //sx={{fontWeight:'bold',color:'white'}}
@@ -47,7 +43,7 @@ function Table(props) {
                                 <material.TableRow key={ind}>
                                     {columns.map((column, colInd) => {
                                         return (
-                                            <material.TableCell key={colInd} align='center'>
+                                            <material.TableCell size='small' key={colInd} align='center'>
                                                 {ele[column]}
                                             </material.TableCell>
                                         );
