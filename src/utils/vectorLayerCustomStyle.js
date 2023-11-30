@@ -1,4 +1,4 @@
-import { Icon, Style, Fill, Circle } from 'ol/style';
+import {Style, Fill, Circle } from 'ol/style';
 import Stroke from 'ol/style/Stroke.js';
 
 
@@ -9,7 +9,7 @@ export const createStyle = (feature) => {
     if (geometryType === 'Polygon' || geometryType === 'MultiPolygon') {
       return new Style({
         fill: new Fill({
-          color: 'rgba(255, 0, 0, 0.5)' // Red color for polygons
+          color: 'rgba(255, 0, 0, 0.2)' // Red color for polygons
         }),
         stroke: new Stroke({
           color: 'red',

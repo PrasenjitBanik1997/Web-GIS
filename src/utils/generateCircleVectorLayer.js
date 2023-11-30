@@ -1,13 +1,11 @@
 import Feature from 'ol/Feature';
 import Circle from 'ol/geom/Circle';
-import { fromExtent } from 'ol/geom/Polygon';
 import { Vector as VectorLayer } from 'ol/layer';
 import { Vector as VectorSource } from 'ol/source';
 import { Style, Stroke, Fill } from 'ol/style';
 
 
 export const createCircleVectorLayerFromTheCoordinate = (centerCoordinates, radiusInMeters) => {
-   console.log(centerCoordinates,radiusInMeters);
     // Create a circle based on the center and radius
     const circleGeometry = new Circle(centerCoordinates, Number(radiusInMeters));
 
@@ -31,8 +29,7 @@ export const createCircleVectorLayerFromTheCoordinate = (centerCoordinates, radi
           color: 'rgba(0, 0, 255, 0.1)', // Change the fill color and opacity as needed
         }),
       }),
-      zIndex:5
+      zIndex:2
     });
-
-    return vectorLayer
+    return vectorLayer;
 }

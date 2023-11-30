@@ -49,7 +49,9 @@ import * as olLoadingStrategy from 'ol/loadingstrategy';
 import { toStringHDMS } from 'ol/coordinate.js';
 import SpatialQueryDialog from '../dialog/SpatialQueryDialog';
 import { createStyle } from '../../utils/vectorLayerCustomStyle';
-import {createCircleVectorLayerFromTheCoordinate}  from '../../utils/generateCircleVectorLayer'
+import { createCircleVectorLayerFromTheCoordinate } from '../../utils/generateCircleVectorLayer'
+import { generateDataForSpatialQuery, generateListOfUrlForFetchingSpatialQueryData } from '../../utils/generateUrl';
+import { addLayerToMap } from '../../utils/layerManagement';
 
 
 var map;
@@ -73,7 +75,8 @@ var coordinatesForSpatialFeature = null;
 var newPointLayer = null;
 var drawFeatureForMeasurment = null;
 var newLayerforSpatialQuery = null;
-var circleLayer=null;
+var circleLayer = null;
+var isActiveFeatureInfo = false;
 
 function MapComponent() {
     const popupRef = useRef(null);
@@ -122,7 +125,7 @@ function MapComponent() {
         zIndex: 5,
     });
     //const defaultExtent = [7636978.342053802, 2546460.5921668783, 10847015.302693773, 3301476.3264769614];
-    const defaultExtent=[9800109.536237817, 2516093.8790986254, 9810033.861218063, 2533895.066382993];
+    const defaultExtent = [9800109.536237817, 2516093.8790986254, 9810033.861218063, 2533895.066382993];
 
     const [isShowTable, setIsShowTable] = useState(true);
     const [isActiveQueryButton, setIsActiveQueryButton] = useState(false);
@@ -273,24 +276,17 @@ function MapComponent() {
                             'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                     }),
                 }),
-                // createCircleVectorLayerFromTheCoordinate("","")
             ],
 
         })
         map.addOverlay(popup);
-        addLayerToMap()
+        currentLayer=addLayerToMap(map,layerDetails); //this function is created in util folder
         map.on('click', (event) => {
-            //const clickCoordinates = map.getEventCoordinate(event); // Assuming you have the click event
-            // const dataCoordinates = transform(event.coordinate, map.getView().getProjection(), 'EPSG:32645');
-            // var lonlat = transform(event.coordinate, 'EPSG:3857', 'EPSG:4326');
-            // var lon = lonlat[0];
-            // var lat = lonlat[1];
-            // console.log(lonlat);
             let coordinate = event.coordinate;
             console.log(coordinate);
             let resolution = view.getResolution();
             //console.log(resolution, coordinate,)
-            if (currentLayer != null && isActiveFeature) {
+            if (currentLayer != null && isActiveFeatureInfo) {
                 let tiledSource = currentLayer.getSource();
                 console.log(isActiveFeature)
                 let url = tiledSource.getFeatureInfoUrl(coordinate, resolution, 'EPSG:3857', { 'INFO_FORMAT': 'application/json' });
@@ -325,46 +321,6 @@ function MapComponent() {
 
         });
 
-        map.on('moveend', function (e) {
-            // var view = map.getView();
-            // var zoom = view.getZoom();
-            // // var resolution = view.getResolution();
-            // // var scale = resolution  // Calculate scale (assuming 72 DPI)
-            // // console.log(zoom,scale)
-            // var extent = map.getView().calculateExtent(map.getSize());
-            // var worldSize = 40075016.6856; // World size for EPSG:3857 projection
-
-            // // Calculate the map scale
-            // var scale = worldSize / (extent[2] - extent[0]);
-
-            // // Convert scale to kilometers
-            // var scaleInKm = scale / 1000;
-
-            // // Use scaleInKm as needed
-            // console.log('Map Scale in Kilometers:', scaleInKm);
-
-            // let tooltip= document.getElementById('toolTip')
-            // // Update the tooltip content
-            // tooltip.innerHTML = 'Zoom Level: ' + zoom + '<br>Scale: 1:' + scale.toFixed(0);
-        });
-
-        map.on('move', function (e) {
-            console.log('move')
-            // var pixel = map.getEventPixel(e.originalEvent);
-            // var feature = map.forEachFeatureAtPixel(pixel, function (feature) {
-            //     return feature;
-            // });
-
-            // if (feature) {
-            //     tooltip.style.display = 'block';
-            //     tooltip.style.left = (pixel[0] + 10) + 'px';
-            //     tooltip.style.top = (pixel[1] - 25) + 'px';
-            // } else {
-            //     tooltip.style.display = 'none';
-            // }
-            // console.log(e)
-        });
-
         map.on('pointerdrag', function (event) {
             // You can perform custom actions when the map is dragged here
             //console.log(event);
@@ -382,7 +338,7 @@ function MapComponent() {
         return () => {
             map.dispose();
         };
-    }, [selectedMapName, layerDetails, isReload, isActiveFeature])
+    }, [selectedMapName, layerDetails, isReload])
 
 
     useEffect(() => {
@@ -417,228 +373,6 @@ function MapComponent() {
             });
         };
     }, [drawFeatureType])
-
-
-
-    const addLayerToMap = () => {
-        let haldiaMouza = new TileLayer({
-            visible: true,
-            source: new TileWMS({
-                //projection: 'EPSG:4326'', // here is the source projection
-                url: 'http://localhost:8080/geoserver/wms',
-                params: {
-                    "TILED": true,
-                    "LAYERS": 'haldia:mouza',
-                },
-                serverType: 'geoserver',
-            }),
-            zIndex: 1,
-        });
-
-        let haldiaPlanningArea = new TileLayer({
-            visible: true,
-            source: new TileWMS({
-                //projection: 'EPSG:3857', // here is the source projection
-                url: 'http://localhost:8080/geoserver/wms',
-                params: {
-                    "TILED": true,
-                    "LAYERS": 'haldia:haldia_planning_area',
-                },
-                serverType: 'geoserver',
-            }),
-        });
-
-        let haldiaRoad = new TileLayer({
-            visible: true,
-            source: new TileWMS({
-                //projection: 'EPSG:3857', // here is the source projection
-                url: 'http://localhost:8080/geoserver/wms',
-                params: {
-                    "TILED": true,
-                    "LAYERS": 'haldia:road',
-                },
-                serverType: 'geoserver',
-            }),
-            zIndex: 1,
-        });
-
-        let haldiaIndustry = new TileLayer({
-            visible: true,
-            source: new TileWMS({
-                //projection: 'EPSG:3857', // here is the source projection
-                url: 'http://localhost:8080/geoserver/wms',
-                params: {
-                    "TILED": true,
-                    "LAYERS": 'haldia:industry',
-                },
-                serverType: 'geoserver',
-            }),
-            zIndex: 1,
-        });
-        let haldiaStorage = new TileLayer({
-            visible: true,
-            source: new TileWMS({
-                //projection: 'EPSG:3857', // here is the source projection
-                url: 'http://localhost:8080/geoserver/wms',
-                params: {
-                    "TILED": true,
-                    "LAYERS": 'haldia:storage',
-                },
-                serverType: 'geoserver',
-            }),
-            zIndex: 2,
-        });
-
-        let layer1503HaKhasra = new TileLayer({
-            visible: true,
-            source: new TileWMS({
-                //projection: 'EPSG:3857', // here is the source projection
-                url: 'http://localhost:8080/geoserver/wms',
-                params: {
-                    "TILED": true,
-                    "LAYERS": 'haldia:layer_1503_ha_khasra-polygon',
-                },
-                serverType: 'geoserver',
-            }),
-        });
-
-        let indiaState = new TileLayer({
-            visible: true,
-            source: new TileWMS({
-                //projection: 'EPSG:3857', // here is the source projection
-                url: 'http://localhost:8080/geoserver/wms',
-                params: {
-                    "TILED": true,
-                    "LAYERS": 'haldia:india_state_boundary',
-                },
-                serverType: 'geoserver',
-            }),
-        });
-
-        let indiaVillageWestbengal = new TileLayer({
-            visible: true,
-            source: new TileWMS({
-                projection: 'EPSG:32644', // here is the source projection
-                url: 'http://localhost:8080/geoserver/wms',
-                params: {
-                    "TILED": true,
-                    "LAYERS": 'haldia:wb_village',
-                },
-                serverType: 'geoserver',
-            }),
-        });
-
-
-
-        if (layerDetails && layerDetails?.changeFrom == 'view' && layerDetails?.layerName.length > 0) {
-            // if (currentLayer != null) {
-            //     map.removeLayer(currentLayer);
-            // }
-
-            let groupOfLayers = []
-
-            if (layerDetails?.layerName.includes('HALDIA_MOUZA')) {
-                groupOfLayers.push(haldiaMouza);
-                currentLayer = null;
-                setIsSelectedActiveLayer(false);
-            }
-            if (layerDetails?.layerName.includes('HALDIA_PLANNING_AREA')) {
-                groupOfLayers.push(haldiaPlanningArea);
-                currentLayer = null;
-                setIsSelectedActiveLayer(false);
-            }
-            if (layerDetails?.layerName.includes('HALDIA_ ROAD')) {
-                groupOfLayers.push(haldiaRoad);
-                currentLayer = null;
-                setIsSelectedActiveLayer(false);
-            }
-            if (layerDetails?.layerName.includes('HALDIA_STORAGE')) {
-                groupOfLayers.push(haldiaStorage);
-                currentLayer = null;
-                setIsSelectedActiveLayer(false);
-            }
-            if (layerDetails?.layerName.includes('HALDIA_INDUSTRY')) {
-                groupOfLayers.push(haldiaIndustry);
-                currentLayer = null;
-                setIsSelectedActiveLayer(false);
-            }
-            if (layerDetails?.layerName.includes('LAYER_KHASRA_POLYGON')) {
-                groupOfLayers.push(layer1503HaKhasra);
-                currentLayer = null;
-                setIsSelectedActiveLayer(false);
-            }
-            if (layerDetails?.layerName.includes('INDIA_STATE')) {
-                groupOfLayers.push(indiaState);
-                currentLayer = null;
-                setIsSelectedActiveLayer(false);
-            }
-            if (layerDetails?.layerName.includes('INDIA_VILLAGE_WB')) {
-                groupOfLayers.push(indiaVillageWestbengal);
-                currentLayer = null;
-                setIsSelectedActiveLayer(false);
-            }
-            // else if (layerDetails === 'ALL') {
-            //     map.addLayer(layerGroup);
-            //     //setCurrentLayer(null);
-            //     currentLayer = null;
-            // }
-            let layerGroup = new LayerGroup({
-                layers: groupOfLayers
-            });
-
-            map.addLayer(layerGroup);
-        }
-        if (layerDetails && layerDetails?.changeFrom == 'active' && layerDetails?.layerName.length > 0) {
-            if (layerDetails?.layerName.includes('HALDIA_MOUZA')) {
-                map.addLayer(haldiaMouza);
-                //setCurrentLayer(haldiaMouza);
-                currentLayer = haldiaMouza;
-                setIsSelectedActiveLayer(true);
-            }
-            if (layerDetails?.layerName.includes('HALDIA_PLANNING_AREA')) {
-                map.addLayer(haldiaPlanningArea);
-                //setCurrentLayer(haldiaPlanningArea);
-                currentLayer = haldiaPlanningArea;
-                setIsSelectedActiveLayer(true);
-            }
-            if (layerDetails?.layerName.includes('HALDIA_ ROAD')) {
-                map.addLayer(haldiaRoad);
-                //setCurrentLayer(haldiaRoad);
-                currentLayer = haldiaRoad;
-                setIsSelectedActiveLayer(true);
-            }
-            if (layerDetails?.layerName.includes('HALDIA_STORAGE')) {
-                map.addLayer(haldiaStorage);
-                //setCurrentLayer(haldiaStorage);
-                currentLayer = haldiaStorage;
-                setIsSelectedActiveLayer(true);
-            }
-            if (layerDetails?.layerName.includes('HALDIA_INDUSTRY')) {
-                map.addLayer(haldiaIndustry);
-                //setCurrentLayer(haldiaIndustry);
-                currentLayer = haldiaIndustry;
-                setIsSelectedActiveLayer(true);
-            }
-            if (layerDetails?.layerName.includes('LAYER_KHASRA_POLYGON')) {
-                map.addLayer(layer1503HaKhasra);
-                //setCurrentLayer(haldiaIndustry);
-                currentLayer = layer1503HaKhasra;
-                setIsSelectedActiveLayer(true);
-            }
-            if (layerDetails?.layerName.includes('INDIA_STATE')) {
-                map.addLayer(indiaState);
-                //setCurrentLayer(haldiaIndustry);
-                currentLayer = indiaState;
-                setIsSelectedActiveLayer(true);
-            }
-            if (layerDetails?.layerName.includes('INDIA_VILLAGE_WB')) {
-                map.addLayer(indiaVillageWestbengal);
-                //setCurrentLayer(haldiaIndustry);
-                currentLayer = indiaVillageWestbengal;
-                setIsSelectedActiveLayer(true);
-            }
-        }
-    }
 
 
     const addDrawFeature = () => {
@@ -831,6 +565,7 @@ function MapComponent() {
 
     const featureActive = () => {
         setIsActiveFeature(!isActiveFeature)
+        isActiveFeatureInfo = !isActiveFeatureInfo;
     }
 
     const closePopUp = () => {
@@ -876,33 +611,34 @@ function MapComponent() {
 
     const getSelectedLayer = () => {
         let layerAddedTotheMap = [];
-        if (layerDetails && layerDetails?.layerName.length > 0) {
-            if (layerDetails?.layerName.includes('HALDIA_MOUZA')) {
+        if (layerDetails && layerDetails?.layerList.length > 0) {
+            if (layerDetails?.layerList.find(ele => ele.layerName === 'HALDIA_MOUZA')) {
                 layerAddedTotheMap.push('haldia:mouza')
             }
-            if (layerDetails?.layerName.includes('HALDIA_PLANNING_AREA')) {
+            if (layerDetails?.layerList.find(ele => ele.layerName === 'HALDIA_PLANNING_AREA')) {
                 layerAddedTotheMap.push('haldia:haldia_planning_area')
             }
-            if (layerDetails?.layerName.includes('HALDIA_ ROAD')) {
+            if (layerDetails?.layerList.find(ele => ele.layerName === 'HALDIA_ ROAD')) {
                 layerAddedTotheMap.push('haldia:road')
             }
-            if (layerDetails?.layerName.includes('HALDIA_STORAGE')) {
+            if (layerDetails?.layerList.find(ele => ele.layerName === 'HALDIA_STORAGE')) {
                 layerAddedTotheMap.push('haldia:storage')
             }
-            if (layerDetails?.layerName.includes('HALDIA_INDUSTRY')) {
+            if (layerDetails?.layerList.find(ele => ele.layerName === 'HALDIA_INDUSTRY')) {
                 layerAddedTotheMap.push('haldia:industry')
             }
-            if (layerDetails?.layerName.includes('INDIA_STATE')) {
+            if (layerDetails?.layerList.find(ele => ele.layerName === 'INDIA_STATE')) {
                 layerAddedTotheMap.push('haldia:india_state_boundary')
             }
-            if (layerDetails?.layerName.includes('INDIA_VILLAGE_WB')) {
+            if (layerDetails?.layerList.find(ele => ele.layerName === 'INDIA_VILLAGE_WB')) {
                 layerAddedTotheMap.push('haldia:wb_village')
             }
         }
         return layerAddedTotheMap;
     }
 
-    const getSpatialQueryFormData = (formData) => {
+    const getSpatialQueryFormData = async (formData) => {
+        console.log(formData)
         if (coordinatesForSpatialFeature) {
             let cordList = coordinatesForSpatialFeature.getGeometry().getCoordinates()[0] + " " + coordinatesForSpatialFeature.getGeometry().getCoordinates()[1];
             let lengthValue;
@@ -916,11 +652,11 @@ function MapComponent() {
             } else if (formData.selectedUnit === 'nautical miles') {
                 lengthValue = (Number(formData.lengthValue) * 1852).toFixed(4);
             }
-            if(circleLayer!==null){
+            if (circleLayer !== null) {
                 map.removeLayer(circleLayer);
             }
-            
-            circleLayer = createCircleVectorLayerFromTheCoordinate(coordinatesForSpatialFeature.getGeometry().getCoordinates(),lengthValue)
+
+            circleLayer = createCircleVectorLayerFromTheCoordinate(coordinatesForSpatialFeature.getGeometry().getCoordinates(), lengthValue);
             map.addLayer(circleLayer);
             // let selectedGeom = '';
             // if (formData.featureOf === 'haldia:haldia_planning_area' || formData.featureOf === 'haldia:road' || formData.featureOf === 'haldia:road') {
@@ -936,35 +672,15 @@ function MapComponent() {
                 map.removeLayer(newLayerforSpatialQuery);
                 newLayerforSpatialQuery = null;
                 // map.render()
-            }
+            };
             newLayerforSpatialQuery = new VectorLayer({
                 name: 'Spatial',
                 source: new VectorSource({
-                    //extent: [9800109.536237817, 2516093.8790986254, 9810033.861218063, 2533895.066382993],
                     url: url,
                     format: new GeoJSON(),
                 }),
                 visible: true,
                 zIndex: 2,
-                // style: new Style({
-                //     fill: new Fill({
-                //         color: "#F0F8FF",
-                //     }),
-                //     stroke: new Stroke({
-                //         color: "#FF0000",
-                //         width: 4,
-                //     }),
-                //     image: new Circle({
-                //         radius: 5,
-                //         fill: new Fill({
-                //             color: "#18ffff",
-                //         }),
-                //         stroke: new Stroke({
-                //             color: "#880e4f",
-                //             width: 2,
-                //         }),
-                //     }),
-                // }),
                 style: (feature) => createStyle(feature)
             });
 
@@ -975,44 +691,14 @@ function MapComponent() {
                     layerExtent,
                     { duration: 1590, size: map.getSize(), maxZoom: 15 }
                 )
-            })
-            map.addLayer(newLayerforSpatialQuery)
+            });
+            map.addLayer(newLayerforSpatialQuery);
 
             /**code for create dialog data start**/
+            let urlList = generateListOfUrlForFetchingSpatialQueryData(formData.featureOf, selectedGeom, formData.markerType, cordList, lengthValue);
             setSpatilQueryDialogData({ open: false, spatilQueryInfo: [] });
-            let dataSpatialAfterQuery = []
-            for (let i=0; i < formData.featureOf.length; i++) {
-                let dataUrl = '';
-                dataUrl = `http://localhost:8080/geoserver/haldia/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=${formData.featureOf[i]}&CQL_FILTER=DWITHIN(${selectedGeom},${formData.markerType.toUpperCase()}(${cordList}),${Number(lengthValue)},${'meters'})&outputFormat=application/json`
-                getFeatureByQuery(dataUrl).then((res) => {
-                    let columnName = res.data.features.length > 0 ? Object.keys(res.data.features[0].properties) : [];
-                    let tableData = res.data.features.length > 0 ? res.data.features.map((ele) => ele.properties) : [];
-                    let layerName = formData.featureOf[i].split(':')[1];
-                    let obj = { layerName:layerName, tableData:tableData, columnName:columnName };
-                    dataSpatialAfterQuery.push(obj)
-                    if ((i === (formData.featureOf.length - 1))) {
-                        console.log([...dataSpatialAfterQuery])
-                        setSpatilQueryDialogData({ open: true, spatilQueryInfo: [...dataSpatialAfterQuery] });
-                    }
-                });
-            }
-            // formData.featureOf.forEach((ele, i) => {
-            //     let dataUrl='';
-            //     dataUrl = `http://localhost:8080/geoserver/haldia/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=${ele}&CQL_FILTER=DWITHIN(${selectedGeom},${formData.markerType.toUpperCase()}(${cordList}),${Number(lengthValue)},${'meters'})&outputFormat=application/json`
-            //     //console.log(dataUrl)
-            //     getFeatureByQuery(dataUrl).then((res) => {
-            //         let columnName = res.data.features.length > 0 ? Object.keys(res.data.features[0].properties) : [];
-            //         let tableData = res.data.features.length > 0 ? res.data.features.map((ele) => ele.properties) : [];
-            //         let layerName = ele.split(':')[1];
-            //         let obj = { layerName, tableData, columnName };
-            //         console.log(obj)
-            //         dataAfterQuery.push(obj)
-            //         if ((i === (formData.featureOf.length - 1))) {
-            //             console.log([...dataAfterQuery])
-            //             setSpatilQueryDialogData({ open: true, spatilQueryInfo: [...dataAfterQuery] });
-            //         }
-            //     });
-            // })
+            let spatilData = await generateDataForSpatialQuery(urlList, formData.featureOf);
+            setSpatilQueryDialogData({ open: true, spatilQueryInfo: [...spatilData] });
             /**code for create dialog data end**/
 
         }
@@ -1083,6 +769,12 @@ function MapComponent() {
             newLayerforSpatialQuery.getSource().clear();
             map.removeLayer(newLayerforSpatialQuery);
             newLayerforSpatialQuery = null;
+            map.render();
+        }
+        if (circleLayer != null) {
+            circleLayer.getSource().clear();
+            map.removeLayer(circleLayer);
+            circleLayer = null;
             map.render();
         }
         map.getView().fit(defaultExtent, { duration: 1590, size: map.getSize(), maxZoom: 10 });

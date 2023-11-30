@@ -153,7 +153,7 @@ function Navbar(props) {
     const measurmentValue = useSelector((state) => state.MeasurmentvalueSlice.measurmentValue);
     const layerDetails = useSelector((state) => state.LayerChangerSlice.layerName);
 
-    const allLayers = [
+    const allLayersList = [
         // {
         //     name: 'Add All Layer To Map',
         //     value: 'ALL'
@@ -164,7 +164,8 @@ function Navbar(props) {
         // },
         {
             name: 'Haldia Mouza',
-            value: 'HALDIA_MOUZA'
+            value: 'HALDIA_MOUZA',
+            isDisable: true
         },
         // {
         //     name: 'Haldia Planning Area',
@@ -172,15 +173,18 @@ function Navbar(props) {
         // },
         {
             name: 'Haldia Industry',
-            value: 'HALDIA_INDUSTRY'
+            value: 'HALDIA_INDUSTRY',
+            isDisable: true
         },
         {
             name: 'Haldia Road',
-            value: 'HALDIA_ ROAD'
+            value: 'HALDIA_ ROAD',
+            isDisable: true
         },
         {
             name: 'Haldia Storage',
-            value: 'HALDIA_STORAGE'
+            value: 'HALDIA_STORAGE',
+            isDisable: true
         },
         // {
         //     name: '	Layer 1503 Ha Khasra Polygon',
@@ -188,13 +192,16 @@ function Navbar(props) {
         // },
         {
             name: 'India State',
-            value: 'INDIA_STATE'
+            value: 'INDIA_STATE',
+            isDisable: true
         },
         {
             name: 'West Bengal Village',
-            value: 'INDIA_VILLAGE_WB'
+            value: 'INDIA_VILLAGE_WB',
+            isDisable: true
         }
     ]
+    const [allLayers, setAllLayers] = React.useState(allLayersList);
     const { open, setOpen, handleDrawerOpen } = props;
     const [anchorEl, setAnchorEl] = React.useState(null);
     const [anchorE2, setAnchorE2] = React.useState(null);
@@ -226,13 +233,33 @@ function Navbar(props) {
 
 
     useEffect(() => {
-        if (layerDetails != null && layerDetails?.changeFrom == 'view' && layerDetails?.layerName.length > 0) {
-            setSelectedViewLayer(layerDetails?.layerName)
-        } else if (layerDetails != null && layerDetails?.changeFrom == 'view' && layerDetails?.layerName.length == 0) {
+
+        // if (layerDetails != null && layerDetails?.changeFrom == 'view' && layerDetails?.layerName.length > 0) {
+        //     setSelectedViewLayer(layerDetails?.layerName)
+        // } else if (layerDetails != null && layerDetails?.changeFrom == 'view' && layerDetails?.layerName.length == 0) {
+        //     setSelectedViewLayer([]);
+        // }
+        // else if (layerDetails != null && layerDetails?.changeFrom == 'active' && layerDetails?.layerName.length > 0) {
+        //     setLayer(layerDetails?.layerName[0]);
+        // }
+        if (layerDetails != null && layerDetails?.layerList?.length > 0) {
+            allLayers.forEach((layer, ind) => {
+                if (layerDetails?.layerList.findIndex(ele => ele.layerName === layer.value) != -1) {
+                    layer.isDisable = false;
+                }
+            });
+
+            layerDetails?.layerList.forEach((ele) => {
+               if( ele.isActive){
+                setLayer(ele.layerName) 
+               }
+                
+            });
+
+            let selectedLayer = layerDetails?.layerList.map(ele => ele.layerName);
+            setSelectedViewLayer(selectedLayer);
+        } else if (layerDetails != null && layerDetails?.layerList.length == 0) {
             setSelectedViewLayer([]);
-        }
-        else if (layerDetails != null && layerDetails?.changeFrom == 'active' && layerDetails?.layerName.length > 0) {
-            setLayer(layerDetails?.layerName[0]);
         }
     }, [layerDetails])
 
@@ -252,7 +279,6 @@ function Navbar(props) {
     };
 
     const changeMap = (mapDetails) => {
-        console.log(mapDetails)
         dispatch(changeMapAction(mapDetails.mapLayer))
     }
 
@@ -288,7 +314,6 @@ function Navbar(props) {
 
     const handleChange = (event) => {
         setUnit(event.target.value);
-        console.log(event.target.value)
     };
 
     const formatValue = (value, measureType, unitType) => {
@@ -333,46 +358,105 @@ function Navbar(props) {
     }
     const handleOpenLayerViewer = (event) => {
         setAnchorE4(event.currentTarget)
-        if (layerDetails != null && layerDetails?.changeFrom == 'view' && layerDetails?.layerName.length > 0) {
-            setSelectedViewLayer(layerDetails?.layerName)
-        } else if (layerDetails != null && layerDetails?.changeFrom == 'view' && layerDetails?.layerName.length == 0) {
+        // if (layerDetails != null && layerDetails?.changeFrom == 'view' && layerDetails?.layerName.length > 0) {
+        //     setSelectedViewLayer(layerDetails?.layerName)
+        // } else if (layerDetails != null && layerDetails?.changeFrom == 'view' && layerDetails?.layerName.length == 0) {
+        //     setSelectedViewLayer([]);
+        // } else if (layerDetails != null && layerDetails?.changeFrom == 'active' && layerDetails?.layerName.length > 0) {
+        //     setLayer(layerDetails?.layerName[0]);
+        // }
+
+        if (layerDetails != null && layerDetails?.layerList?.length > 0) {
+            allLayers.forEach((layer, ind) => {
+                if (layerDetails?.layerList.findIndex(ele => ele.layerName === layer.value) != -1) {
+                    layer.isDisable = false;
+                }
+            });
+            setAllLayers(allLayers)
+            layerDetails?.layerList.forEach((ele) => {
+                if(ele.isActive){setLayer(ele.layerName)};
+            });
+
+            let selectedLayer = layerDetails?.layerList.map(ele => ele.layerName);
+            setSelectedViewLayer(selectedLayer);
+        } else if (layerDetails != null && layerDetails?.layerList.length == 0) {
             setSelectedViewLayer([]);
-        } else if (layerDetails != null && layerDetails?.changeFrom == 'active' && layerDetails?.layerName.length > 0) {
-            setLayer(layerDetails?.layerName[0]);
         }
     }
 
     const activeLayerChange = (event) => {
-        setSelectedViewLayer([]);
-        let obj = { changeFrom: 'active', layerName: [event.target.value] }
-        setLayer(event.target.value);
-        dispatch(layerChangingAction(obj))
+        // setSelectedViewLayer([]);
+        // let obj = { changeFrom: 'active', layerName: [event.target.value] }
+        // setLayer(event.target.value);
+        // dispatch(layerChangingAction(obj))
+        let copyLayerDetails = { ...layerDetails };
+        let neLayerList = copyLayerDetails.layerList.map(ele => {
+            if (ele.layerName === event.target.value && ele.isActive === false) {
+                let obj = { ...ele }
+                obj.isActive = true;
+                setLayer(obj.layerName);
+                return obj;
+            } else if (ele.layerName === event.target.value && ele.isActive === true) {
+                let obj = { ...ele }
+                obj.isActive = false;
+                //setLayer('');
+                return obj;
+            } else {
+                let obj = { ...ele }
+                obj.isActive = false;
+                return obj;
+            }
+        })
+        copyLayerDetails.layerList = [...neLayerList];
+        dispatch(layerChangingAction(copyLayerDetails))
+    }
+
+    const deactivateLayer = (layerName) => {
+        if (layer.length > 0) {
+            if (layerDetails?.layerList.findIndex((ele) => ele.layerName == layerName) != -1) {
+                let newObj = { ...layerDetails }
+                let ind = newObj?.layerList.findIndex((ele) => ele.layerName == layerName);
+                let arr = [...newObj?.layerList];
+                if(arr[ind].isActive){
+                    let ele={...arr[ind]};
+                    ele.isActive=false;
+                    arr[ind]=ele;
+                    setLayer('')
+                }
+                 newObj.layerList = arr;
+                dispatch(layerChangingAction(newObj));
+            }
+        }
     }
 
     const viewLayerChange = (event) => {
         setLayer('');
-        let obj = { changeFrom: 'view', layerName: [] }
-        if (layerDetails != null && layerDetails?.changeFrom == 'view' && layerDetails?.layerName.length > 0) {
-            if (layerDetails?.layerName.findIndex((ele) => ele == event.target.value) != -1 && event.target.checked == false) {
+        let obj = { layerList: [] }
+        if (layerDetails != null && layerDetails?.layerList.length > 0) {
+            if (layerDetails?.layerList.findIndex((ele) => ele.layerName == event.target.value) != -1 && event.target.checked == false) {
                 let newObj = { ...layerDetails }
-                let ind = newObj?.layerName.findIndex((ele) => ele == event.target.value);
-                let arr = newObj?.layerName.filter((ele, i) => i !== ind);
-                newObj.layerName = arr;
+                let ind = newObj?.layerList.findIndex((ele) => ele.layerName == event.target.value);
+                let arr = newObj?.layerList.filter((ele, i) => i !== ind);
+                newObj.layerList = arr;
+                allLayers.forEach((layer, ind) => {
+                    if (event.target.value === layer.value) {
+                        layer.isDisable = true;
+                    }
+                });
+                setAllLayers(allLayers)
                 dispatch(layerChangingAction(newObj));
             } else {
                 let newAddLayer = { ...layerDetails }
-                let newArr = [...newAddLayer.layerName];
-                newArr.push(event.target.value);
-                newAddLayer.layerName = newArr;
+                let newArr = [...newAddLayer.layerList];
+                newArr.push({ isActive: false, layerName: event.target.value });
+                newAddLayer.layerList = newArr;
                 dispatch(layerChangingAction(newAddLayer));
             }
         } else {
-            obj.layerName.push(event.target.value)
+            let newLayer = { isActive: false, layerName: event.target.value }
+            obj.layerList.push(newLayer)
             dispatch(layerChangingAction(obj));
         }
-
-        console.log(event.target.checked)
-
     }
 
     const getPrintOfCurrentWindow = () => {
@@ -539,7 +623,7 @@ function Navbar(props) {
                                             onChange={activeLayerChange}
                                         >
                                             {allLayers.map((radioValue, rInd) => (
-                                                <material.FormControlLabel key={rInd} value={radioValue.value} control={<material.Radio />} className='fs-5' label={radioValue.name} />
+                                                <material.FormControlLabel key={rInd} value={radioValue.value} disabled={radioValue.isDisable} control={<material.Radio />} className='fs-5' label={radioValue.name} onClick={() => deactivateLayer(radioValue.value)} />
                                             ))}
                                         </material.RadioGroup>
                                     </material.FormControl>
@@ -653,6 +737,7 @@ function Navbar(props) {
                     <div className="col-12 d-flex justify-content-center mt-2">
                         {measurmentValue > 0 ? (<span dangerouslySetInnerHTML={{ __html: getFormatValue }}></span>) : (<span>no result</span>)}
                     </div>
+                    
                 </div>
 
             </div>

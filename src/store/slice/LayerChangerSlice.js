@@ -1,7 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
-    layerName: ''
+    layerName: null
 }
 
 const layerNameChange = createSlice({
