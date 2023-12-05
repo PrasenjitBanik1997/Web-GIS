@@ -52,6 +52,8 @@ import { createStyle } from '../../utils/vectorLayerCustomStyle';
 import { createCircleVectorLayerFromTheCoordinate } from '../../utils/generateCircleVectorLayer'
 import { generateDataForSpatialQuery, generateListOfUrlForFetchingSpatialQueryData } from '../../utils/generateUrl';
 import { addLayerToMap } from '../../utils/layerManagement';
+import Alert from '../alert-message/Alert';
+import Loader from '../loader/Loader';
 
 
 var map;
@@ -79,6 +81,8 @@ var circleLayer = null;
 var isActiveFeatureInfo = false;
 
 function MapComponent() {
+    const [messageInfo, setMessageInfo] = useState({});
+    const [isLoadingLoader, setIsLoasingLoader] = useState(false);
     const popupRef = useRef(null);
     const popupContentRef = useRef(null);
     const dispatch = useDispatch();
@@ -280,7 +284,7 @@ function MapComponent() {
 
         })
         map.addOverlay(popup);
-        currentLayer=addLayerToMap(map,layerDetails); //this function is created in util folder
+        currentLayer = addLayerToMap(map, layerDetails); //this function is created in util folder
         map.on('click', (event) => {
             let coordinate = event.coordinate;
             console.log(coordinate);
@@ -295,23 +299,54 @@ function MapComponent() {
                 if (url) {
                     getLayerData(url).then((res) => {
                         if (res.data.features.length > 0) {
-                            let col = Object.keys(res.data.features[0].properties);
-                            let tbData = res.data.features.map((ele) => ele.properties);
-                            let layerData = renderHtmltomap(col, tbData)
-                            popupContentRef.current.innerHTML = layerData;
-                            popup.setPosition(coordinate);
-                        } else {
+                            closePopUp();
+                            setMessageInfo(
+                                {
+                                    message: 'Feature fetched succesfully',
+                                    type: 'success',
+                                    isVisiable: true
+                                }
+                            )
+                            setTimeout(() => {
+                                let col = Object.keys(res.data.features[0].properties);
+                                let tbData = res.data.features.map((ele) => ele.properties);
+                                let layerData = renderHtmltomap(col, tbData)
+                                popupContentRef.current.innerHTML = layerData;
+                                popup.setPosition(coordinate);
+                            }, 2000)
 
+                        } else {
+                            setMessageInfo(
+                                {
+                                    message: `No data found from this (${coordinate[0]} , ${coordinate[1]}) coordinate`,
+                                    type: 'error',
+                                    isVisiable: true
+                                }
+                            )
                         }
                     }).catch((err) => {
-                        console.log(err)
+                        setMessageInfo(
+                            {
+                                message: err,
+                                type: 'error',
+                                isVisiable: true
+                            }
+                        )
                     })
                 } else {
                 }
                 // console.log(tiledSource.getFeaturesAtCoordinate(coordinate))
 
             } else {
-
+                if (isActiveFeatureInfo === true) {
+                    setMessageInfo(
+                        {
+                            message: 'To get feature Info please active one layer',
+                            type: 'info',
+                            isVisiable: true
+                        }
+                    )
+                }
             }
 
             //layerAfterQuery.getSource().getFeaturesAtCoordinate(coordinate)
@@ -339,7 +374,6 @@ function MapComponent() {
             map.dispose();
         };
     }, [selectedMapName, layerDetails, isReload])
-
 
     useEffect(() => {
         map.removeLayer(vector);
@@ -416,11 +450,18 @@ function MapComponent() {
         //setIsActiveQueryButton(false);
         setColumn([]);
         setTableData([]);
-        layerAfterQuery?.getSource().clear();
-        map.removeLayer(layerAfterQuery);
-        //setIsReload(!isReload)
-        map.getView().fit(defaultExtent, { duration: 1590, size: map.getSize(), maxZoom: 4 });
-        layerAfterQuery = null;
+        if (layerAfterQuery !== null) {
+            setIsLoasingLoader(true);
+            setTimeout(() => {
+                layerAfterQuery?.getSource().clear();
+                map.removeLayer(layerAfterQuery);
+                //setIsReload(!isReload)
+                map.getView().fit(defaultExtent, { duration: 1590, size: map.getSize(), maxZoom: 4 });
+                layerAfterQuery = null;
+                setIsLoasingLoader(false);
+            }, 1000)
+        }
+
     }
 
     const openQueryPopOver = (event) => {
@@ -550,16 +591,38 @@ function MapComponent() {
             )
         })
         map.addLayer(layerAfterQuery)
-
+        setIsLoasingLoader(true)
         getLayerDataByQuery(url).then((res) => {
             if (res.data.features.length > 0) {
+                setMessageInfo(
+                    {
+                        message: 'Data fetched successfully for this criteria',
+                        type: 'success',
+                        isVisiable: true
+                    }
+                )
                 let col = Object.keys(res.data.features[0].properties);
                 setColumn(col);
                 let tbData = res.data.features.map((ele) => ele.properties);
                 setTableData(tbData);
+            } else {
+                setMessageInfo(
+                    {
+                        message: 'No data found for this criteria!! Please change the criteria and apply query.',
+                        type: 'warning',
+                        isVisiable: true
+                    }
+                )
             }
+            setIsLoasingLoader(false)
         }).catch(() => {
-
+            setMessageInfo(
+                {
+                    message: 'Problem from the server',
+                    type: 'error',
+                    isVisiable: true
+                }
+            )
         })
     }
 
@@ -585,11 +648,22 @@ function MapComponent() {
 
     const openSpatialQueryDialog = () => {
         let layersAlreadyAddedToThemap = getSelectedLayer();
+        resetSpatialQueryForm();
         if (layersAlreadyAddedToThemap.length > 0) {
             setIsOpenSpatialQueryDialog(!isOpenSpatialQueryDialog);
             setLayerForSpatialQuery(layersAlreadyAddedToThemap)
+        } else {
+            setMessageInfo(
+                {
+                    message: 'Opps!! Please project one layer on the map ,then click on it.',
+                    type: 'info',
+                    isVisiable: true
+                }
+            )
         }
     }
+
+    
 
     const onchangeLayerSpeQue = (event) => {
         setSelectedLayerSpeQue(event.target.value)
@@ -638,6 +712,7 @@ function MapComponent() {
     }
 
     const getSpatialQueryFormData = async (formData) => {
+        setIsLoasingLoader(true);
         console.log(formData)
         if (coordinatesForSpatialFeature) {
             let cordList = coordinatesForSpatialFeature.getGeometry().getCoordinates()[0] + " " + coordinatesForSpatialFeature.getGeometry().getCoordinates()[1];
@@ -700,7 +775,7 @@ function MapComponent() {
             let spatilData = await generateDataForSpatialQuery(urlList, formData.featureOf);
             setSpatilQueryDialogData({ open: true, spatilQueryInfo: [...spatilData] });
             /**code for create dialog data end**/
-
+            setIsLoasingLoader(false)
         }
     }
 
@@ -754,30 +829,50 @@ function MapComponent() {
     }
 
     const clearSpatialQueryFromTheMap = () => {
-        if (newPointLayer != null) {
-            map.getLayers().forEach(layer => {
-                console.log(layer)
-                if (layer && layer.get('name') === 'Point') {
-                    layer.getSource().refresh();
-                    map.removeLayer(layer);
-                    newPointLayer = null;
-                }
-            });
-        }
-        if (newLayerforSpatialQuery != null) {
-            coordinatesForSpatialFeature = null;
-            newLayerforSpatialQuery.getSource().clear();
-            map.removeLayer(newLayerforSpatialQuery);
-            newLayerforSpatialQuery = null;
-            map.render();
-        }
-        if (circleLayer != null) {
-            circleLayer.getSource().clear();
-            map.removeLayer(circleLayer);
-            circleLayer = null;
-            map.render();
-        }
-        map.getView().fit(defaultExtent, { duration: 1590, size: map.getSize(), maxZoom: 10 });
+        setIsLoasingLoader(true);
+        resetSpatialQueryForm()
+        setTimeout(() => {
+            if (newPointLayer != null) {
+                map.getLayers().forEach(layer => {
+                    console.log(layer)
+                    if (layer && layer.get('name') === 'Point') {
+                        layer.getSource().refresh();
+                        map.removeLayer(layer);
+                        newPointLayer = null;
+                    }
+                });
+            }
+            if (newLayerforSpatialQuery != null) {
+                coordinatesForSpatialFeature = null;
+                newLayerforSpatialQuery.getSource().clear();
+                map.removeLayer(newLayerforSpatialQuery);
+                newLayerforSpatialQuery = null;
+                map.render();
+            }
+            if (circleLayer != null) {
+                circleLayer.getSource().clear();
+                map.removeLayer(circleLayer);
+                circleLayer = null;
+                map.render();
+            }
+            map.getView().fit(defaultExtent, { duration: 1590, size: map.getSize(), maxZoom: 11.6 });
+            setIsLoasingLoader(false)
+        }, 1000)
+
+    }
+
+    const resetSpatialQueryForm = () => {
+        reset2({
+            "featureOf": [],
+            "fromLocation": "",
+            "lengthValue": "",
+            "selectedUnit": "",
+            "markerType": ""
+        })
+        setSelectedLayerSpeQue([]);
+        setSelectedMarkerType('');
+        setSelectedUnitSpeQue('');
+        setSelectedFromLocation('');
     }
 
     const spatialQueryInfoDialogClose = () => {
@@ -1069,6 +1164,9 @@ function MapComponent() {
                 </form>
             </div>
             <SpatialQueryDialog openInfo={spatilQueryDialogData} spatialQueryInfoDialogClose={spatialQueryInfoDialogClose} />
+            <Alert messageInfo={messageInfo} />
+            <Loader isLoading={isLoadingLoader} />
+
         </div>
     )
 }

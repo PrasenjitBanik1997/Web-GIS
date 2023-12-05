@@ -68,16 +68,21 @@ export const downloadPdf = (jsonData) => {
     console.log(fileName)
     doc.setFontSize(18);
     doc.setTextColor('blue')
-    doc.text(layerName.toUpperCase(),5,10);
+    doc.text(layerName.toUpperCase(), 5, 10);
 
-    const tableHeaders = tableData.length > 0 ? Object.keys(tableData[0]) : ["Message"];
-    const tableValues = tableData.length > 0 ? tableData.map(item => Object.values(item)) : [{"Message":"No Data Found"}].map(item => Object.values(item));
-
+    //const tableHeaders = tableData.length > 0 ? (Object.keys(tableData[0]).length >10?Object.keys(tableData[0]).filter((headerName,headerInd)=>headerInd<=9):Object.keys(tableData[0])): ["Message"];
+    let tableHeaders = [];
+    if (tableData.length > 0) {
+      tableHeaders = Object.keys(tableData[0]).length > 10 ? Object.keys(tableData[0]).filter((headerName, headerInd) => headerInd <= 9) : Object.keys(tableData[0])
+    } else {
+      tableHeaders = ["Message"]
+    }
+    const tableValues = tableData.length > 0 ? tableData.map(item => Object.values(item).length > 10 ? Object.values(item).filter((val, valInd) => valInd <= 9) : Object.values(item)) : [{ "Message": "No Data Found" }].map(item => Object.values(item));
     doc.autoTable({
-      startY:15,
+      startY: 15,
       head: [tableHeaders],
       body: tableValues,
-      margin: { top:5, left:5, right:5, bottom:5 },
+      margin: { top: 5, left: 5, right: 5, bottom: 5 },
     });
 
     doc.addPage(); // Add a new page for each layer

@@ -1,0 +1,10 @@
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    top: 0px;
+    background-color: rgba(8, 64, 133, 0.5);
+}

@@ -15,6 +15,7 @@ export const generateDataForSpatialQuery = async (urlList, layerList) => {
             let res = await getFeatureByQuery(ele) //api is called in this line;
             console.log(res.data);
             let columnName = res.data.features.length > 0 ? Object.keys(res.data.features[0].properties) : [];
+            columnName = (columnName.length !== 0) && (columnName.length) > 10 ? columnName.filter((colName, colInd) => colInd <= 9) : columnName;
             let tableData = res.data.features.length > 0 ? res.data.features.map((ele) => ele.properties) : [];
             let layerName = layerList[ind].split(':')[1];
             let obj = { layerName: layerName, tableData: tableData, columnName: columnName };
