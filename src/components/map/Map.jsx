@@ -82,7 +82,7 @@ var isActiveFeatureInfo = false;
 
 function MapComponent() {
     const [messageInfo, setMessageInfo] = useState({});
-    const [isLoadingLoader, setIsLoasingLoader] = useState(false);
+    const [isLoadingLoader, setIsLoadingLoader] = useState(false);
     const popupRef = useRef(null);
     const popupContentRef = useRef(null);
     const dispatch = useDispatch();
@@ -451,14 +451,14 @@ function MapComponent() {
         setColumn([]);
         setTableData([]);
         if (layerAfterQuery !== null) {
-            setIsLoasingLoader(true);
+            setIsLoadingLoader(true);
             setTimeout(() => {
                 layerAfterQuery?.getSource().clear();
                 map.removeLayer(layerAfterQuery);
                 //setIsReload(!isReload)
                 map.getView().fit(defaultExtent, { duration: 1590, size: map.getSize(), maxZoom: 4 });
                 layerAfterQuery = null;
-                setIsLoasingLoader(false);
+                setIsLoadingLoader(false);
             }, 1000)
         }
 
@@ -591,7 +591,7 @@ function MapComponent() {
             )
         })
         map.addLayer(layerAfterQuery)
-        setIsLoasingLoader(true)
+        setIsLoadingLoader(true)
         getLayerDataByQuery(url).then((res) => {
             if (res.data.features.length > 0) {
                 setMessageInfo(
@@ -614,7 +614,7 @@ function MapComponent() {
                     }
                 )
             }
-            setIsLoasingLoader(false)
+            setIsLoadingLoader(false)
         }).catch(() => {
             setMessageInfo(
                 {
@@ -712,7 +712,7 @@ function MapComponent() {
     }
 
     const getSpatialQueryFormData = async (formData) => {
-        setIsLoasingLoader(true);
+        setIsLoadingLoader(true);
         console.log(formData)
         if (coordinatesForSpatialFeature) {
             let cordList = coordinatesForSpatialFeature.getGeometry().getCoordinates()[0] + " " + coordinatesForSpatialFeature.getGeometry().getCoordinates()[1];
@@ -775,7 +775,7 @@ function MapComponent() {
             let spatilData = await generateDataForSpatialQuery(urlList, formData.featureOf);
             setSpatilQueryDialogData({ open: true, spatilQueryInfo: [...spatilData] });
             /**code for create dialog data end**/
-            setIsLoasingLoader(false)
+            setIsLoadingLoader(false)
         }
     }
 
@@ -829,7 +829,7 @@ function MapComponent() {
     }
 
     const clearSpatialQueryFromTheMap = () => {
-        setIsLoasingLoader(true);
+        setIsLoadingLoader(true);
         resetSpatialQueryForm()
         setTimeout(() => {
             if (newPointLayer != null) {
@@ -856,7 +856,7 @@ function MapComponent() {
                 map.render();
             }
             map.getView().fit(defaultExtent, { duration: 1590, size: map.getSize(), maxZoom: 11.6 });
-            setIsLoasingLoader(false)
+            setIsLoadingLoader(false)
         }, 1000)
 
     }
