@@ -1,5 +1,6 @@
 import axios from "axios";
 import { rooApiUrl } from "../environment/Environment";
+import { rooApiUrlFromRemoteServer } from "../environment/Environment";
 
 
 
@@ -54,6 +55,14 @@ export const getAttributeByLayerName = async (selectedLayer) => {
     })
 }
 
+export const getFacilityByFacilityRefNo = async (refNo) => {
+    return await axios.get(`${rooApiUrlFromRemoteServer}/api/facility/get-facility`, {
+        params: {
+            facilityRefNo:refNo
+        }
+    })
+}
+
 
 
 
@@ -87,6 +96,6 @@ export const getLayerData = async (url) => {
     return await axios.get(url)
 }
 
-export const getFeatureByQuery = async (spUrl) =>{
+export const getFeatureByQuery = async (spUrl) => {
     return await axios.get(spUrl)
 }

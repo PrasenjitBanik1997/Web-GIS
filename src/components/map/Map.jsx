@@ -31,7 +31,7 @@ import { material } from '../../library/material';
 import { measurmentValueChangeAction } from '../../store/slice/MeasurmentvalueSlice';
 import { useDispatch } from 'react-redux';
 import TileWMS from 'ol/source/TileWMS.js';
-import { getAllLayer, getLayerDataByQuery, getAttributeByLayerName, getLayerData, getFeatureByQuery } from '../../services/LayerInfoService';
+import { getAllLayer, getLayerDataByQuery, getAttributeByLayerName, getLayerData, getFeatureByQuery, getFacilityByFacilityRefNo } from '../../services/LayerInfoService';
 import XMLParser from 'react-xml-parser';
 import ZoomToExtent from 'ol/control/ZoomToExtent.js';
 import queryIcon from '../../assets/map-image/queryIcon.png';
@@ -54,6 +54,7 @@ import { generateDataForSpatialQuery, generateListOfUrlForFetchingSpatialQueryDa
 import { addLayerToMap } from '../../utils/layerManagement';
 import Alert from '../alert-message/Alert';
 import Loader from '../loader/Loader';
+import PolutionDataShowingDialog from '../dialog/polution-data-dialog/PolutionDataShowingDialog';
 
 
 var map;
@@ -82,6 +83,7 @@ var isActiveFeatureInfo = false;
 
 function MapComponent() {
     const [messageInfo, setMessageInfo] = useState({});
+    const [polutionDataInfo, setPolutionDataInfo] = useState({});
     const [isLoadingLoader, setIsLoadingLoader] = useState(false);
     const popupRef = useRef(null);
     const popupContentRef = useRef(null);
@@ -150,6 +152,7 @@ function MapComponent() {
     const [isActiveFeature, setIsActiveFeature] = useState(false);
     const [isOpenSpatialQueryDialog, setIsOpenSpatialQueryDialog] = useState(false);
     const [isActiveMousePosition, setIsActiveMousePosition] = useState(false);
+    const [featureInfoDataFromGeoserver,setFeatureInfoDataFromGeoserver]=useState({})
 
     /******FOR SPATIAL QUERY******/
     const [layerForSpatialQuery, setLayerForSpatialQuery] = useState([]);
@@ -297,7 +300,7 @@ function MapComponent() {
                 console.log(url)
 
                 if (url) {
-                    getLayerData(url).then((res) => {
+                    getLayerData(url).then(async (res) => {
                         if (res.data.features.length > 0) {
                             closePopUp();
                             setMessageInfo(
@@ -307,14 +310,36 @@ function MapComponent() {
                                     isVisiable: true
                                 }
                             )
-                            setTimeout(() => {
-                                let col = Object.keys(res.data.features[0].properties);
-                                let tbData = res.data.features.map((ele) => ele.properties);
-                                let layerData = renderHtmltomap(col, tbData)
-                                popupContentRef.current.innerHTML = layerData;
-                                popup.setPosition(coordinate);
-                            }, 2000)
+                            let dataFromGeoserver = res.data.features[0].properties;
+                            setFeatureInfoDataFromGeoserver(dataFromGeoserver);
+                            if (res.data.features[0].properties.ref_no) {
+                                let dataFromEsgServer = await getFacilityByFacilityRefNo(res.data.features[0].properties.ref_no);
+                                let facilityInfo = { ...dataFromEsgServer.data };
+                                let proPertyHasToBeDeleted = ['geographicalLocations', 'nicDto', 'pointOfContactsDto', 'address', 'refNo'];
+                                for (var i = 0; i < proPertyHasToBeDeleted.length; i++) {
+                                    if (facilityInfo.hasOwnProperty(proPertyHasToBeDeleted[i])) {
+                                        delete facilityInfo[proPertyHasToBeDeleted[i]];
+                                    }
+                                }
+                                let dataForDialog = { ...dataFromGeoserver, ...facilityInfo };
+                                setTimeout(() => {
+                                    let col = Object.keys(dataForDialog);
+                                    let tbData = [dataForDialog]
+                                    let layerData = renderHtmltomap(col, tbData)
+                                    popupContentRef.current.innerHTML = layerData;
+                                    popup.setPosition(coordinate);
+                                }, 2000)
 
+                            } else {
+                                setTimeout(() => {
+                                    let col = Object.keys(dataFromGeoserver);
+                                    // let tbData = res.data.features.map((ele) => ele.properties);
+                                    let tbData = [dataFromGeoserver];
+                                    let layerData = renderHtmltomap(col, tbData)
+                                    popupContentRef.current.innerHTML = layerData;
+                                    popup.setPosition(coordinate);
+                                }, 2000)
+                            }
                         } else {
                             setMessageInfo(
                                 {
@@ -640,11 +665,21 @@ function MapComponent() {
     const renderHtmltomap = (overlayKeys, overlayData) => {
         let cardContent = '';
         overlayKeys.forEach(key => {
-            cardContent += `<div class='content'><span class='keyName'>${key} :</span><span class='keyValue'> ${overlayData[0][key]}</span></div>`;
+            cardContent += `<div class='content'><span class='keyName'>${camelCaseToCapitalCase(key)} :</span><span class='keyValue'> ${overlayData[0][key]}</span></div>`;
         });
         return cardContent;
     }
 
+    const openPolutionDataDialog = (callForm) => {
+        setPolutionDataInfo({ industryDetails: {...featureInfoDataFromGeoserver}, open: true, openFor: callForm });
+    }
+    console.log(polutionDataInfo)
+    const camelCaseToCapitalCase = (str) => {
+        return str.replace(/([a-z])([A-Z])/g, '$1 $2')
+            .replace(/\b\w/g, function (char) {
+                return char.toUpperCase();
+            });
+    }
 
     const openSpatialQueryDialog = () => {
         let layersAlreadyAddedToThemap = getSelectedLayer();
@@ -663,7 +698,7 @@ function MapComponent() {
         }
     }
 
-    
+
 
     const onchangeLayerSpeQue = (event) => {
         setSelectedLayerSpeQue(event.target.value)
@@ -883,6 +918,10 @@ function MapComponent() {
         setIsShowTable(!isShowTable);
     }
 
+    const closePolutionDialog = () => {
+        setPolutionDataInfo({ industryDetails: {}, open: false, openFor: '' })
+    }
+
     return (
         <div>
             <Drawer />
@@ -1029,9 +1068,17 @@ function MapComponent() {
             <div id="popup" ref={popupRef} className="ol-popup">
                 <a href="#" id='popup-closer' className="ol-popup-closer" onClick={closePopUp}></a>
                 <div id="popup-content" ref={popupContentRef} style={{
-                    height: '400px',
                     overflowY: 'auto'
-                }}></div>
+                }}>
+                </div>
+                {layerDetails?.layerList.find(ele => ele.layerName === 'HALDIA_INDUSTRY') && layerDetails?.layerList.filter(ele => ele.layerName === 'HALDIA_INDUSTRY')[0].isActive ?
+                    <div className="button-container">
+                        <button className="responsive-button" id="water" onClick={() => openPolutionDataDialog('water')}>Water Withdrawal And Discharge ➤</button>
+                        <button className="responsive-button" id="air" onClick={() => openPolutionDataDialog('air')} >Air Emissions - Point Source ➤</button>
+                        <button className="responsive-button" id="waste" onClick={() => openPolutionDataDialog('waste')} >Waste Generation ➤</button>
+                    </div> : null
+                }
+
             </div>
 
             <material.Tooltip title="Apply Spatial Query" arrow placement="right">
@@ -1166,6 +1213,7 @@ function MapComponent() {
             <SpatialQueryDialog openInfo={spatilQueryDialogData} spatialQueryInfoDialogClose={spatialQueryInfoDialogClose} />
             <Alert messageInfo={messageInfo} />
             <Loader isLoading={isLoadingLoader} />
+            <PolutionDataShowingDialog polutionData={polutionDataInfo} close={closePolutionDialog} />
 
         </div>
     )

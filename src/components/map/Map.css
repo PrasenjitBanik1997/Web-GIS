@@ -164,15 +164,17 @@
     position: absolute;
     background-color: white;
     box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-    padding: 15px;
+    padding: 10px;
     border-radius: 10px;
     border: 1px solid #cccccc;
     bottom: 12px;
-    left: -50px;
-    min-width: 280px;
+    /* left: -50%; */
+    left: -400px;
+    /* min-width: 280px; */
     min-height: 300px;
-    /* height: 400px;
-    overflow-y: scroll; */
+    width:800px;
+    max-height: 500px;
+    /* overflow-y: scroll; */
   }
   .ol-popup:after, .ol-popup:before {
     top: 100%;
@@ -186,13 +188,13 @@
   .ol-popup:after {
     border-top-color: white;
     border-width: 10px;
-    left: 48px;
+    left: 50%;
     margin-left: -10px;
   }
   .ol-popup:before {
     border-top-color: #cccccc;
     border-width: 11px;
-    left: 48px;
+    left: 50%;
     margin-left: -11px;
   }
   .ol-popup-closer {
@@ -211,7 +213,43 @@
     padding: 10px;
     background-color: #f8f4f4;
     border-radius: 2px;
-    margin: 5px 0px 5px 0px;
+    margin: 5px 2px 5px 2px;
+    flex: 40% 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .button-container {
+    padding: 10px;
+    background-color: #f8f4f4;
+    border-radius: 2px;
+    margin: 5px 2px 5px 2px;
+    display: flex;
+    flex: 40% 1;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .responsive-button {
+    display: inline-block;
+    padding: 5px 10px;
+    font-size: 15px;
+    font-weight: bold;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    border: 2px solid #3498db;
+    color: #3498db;
+    background-color: #ffffff;
+    border-radius: 5px;
+    transition: background-color 0.3s, color 0.3s;
+    margin: 5px;
+  }
+
+  .responsive-button:hover {
+    background-color: #3498db;
+    color: #ffffff;
   }
 
   .keyName{
@@ -285,4 +323,11 @@
     box-shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
     z-index: 7;
     align-items: center;
+}
+#popup-content{
+    display:flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 15px;
+    height: 395px;
 }
